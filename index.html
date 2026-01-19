@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HANN 25 - UPLOAD MANAGER</title>
+    <title>HANN 25 - UPLOAD</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -15,6 +15,28 @@
         h2 { color: #0ea5e9; font-size: 14px; border-bottom: 1px solid #222; padding-bottom: 10px; margin-top: 0; text-transform: uppercase; letter-spacing: 1px; }
         input, textarea, select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; border-radius: 10px; color: white; margin-bottom: 12px; box-sizing: border-box; outline: none; font-family: inherit; font-size: 13px; }
         input:focus { border-color: #0ea5e9; }
+        
+        .multi-select { position: relative; width: 100%; margin-bottom: 12px; }
+        .select-box { 
+            padding: 12px; background: #000; border: 1px solid #333; 
+            border-radius: 10px; cursor: pointer; font-size: 13px; color: #666;
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+        }
+        .select-box.active { border-color: #0ea5e9; color: #fff; }
+        .options-container { 
+            position: absolute; top: calc(100% + 5px); left: 0; width: 100%; 
+            background: #0a0a0a; border: 1px solid #333; border-radius: 10px; 
+            display: none; z-index: 100; padding: 10px; box-sizing: border-box;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .options-container.show { display: block; }
+        .opt-item { 
+            display: flex; align-items: center; gap: 10px; padding: 10px; 
+            border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 12px; color: #ccc;
+        }
+        .opt-item:hover { background: rgba(14, 165, 233, 0.1); color: #fff; }
+        .opt-item input { width: auto; margin: 0; cursor: pointer; }
+
         .btn-blue { width: 100%; padding: 14px; background: #0ea5e9; color: white; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.3s; font-size: 12px; letter-spacing: 1px; }
         .btn-blue:hover { background: #0284c7; transform: translateY(-2px); }
         .item { background: #161616; padding: 15px; border-radius: 12px; border: 1px solid #222; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -41,13 +63,26 @@
             <input type="text" id="dl-thumb" placeholder="Link Thumbnail (URL)">
             <input type="text" id="dl-link" placeholder="Link Download">
             <textarea id="dl-desc" placeholder="Deskripsi singkat..." rows="2"></textarea>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="dl-cat" placeholder="Kategori (contoh: bot md, bot bug)">
-                <select id="dl-plat" style="width: 140px;">
-                    <option value="wa">WA</option>
-                    <option value="tele">TELE</option>
-                </select>
+            
+            <div class="multi-select">
+                <div class="select-box" id="cat-trigger" onclick="window.toggleCatDropdown()">
+                    <span id="selected-label">Pilih Kategori</span>
+                    <span>▼</span>
+                </div>
+                <div class="options-container" id="cat-options">
+                    <label class="opt-item"><input type="checkbox" class="cat-cb" value="bot md"> Bot MD</label>
+                    <label class="opt-item"><input type="checkbox" class="cat-cb" value="bot store"> Bot Store</label>
+                    <label class="opt-item"><input type="checkbox" class="cat-cb" value="bot bug"> Bot Bug</label>
+                    <label class="opt-item"><input type="checkbox" class="cat-cb" value="bot pushkontak"> Bot Pushkontak</label>
+                    <label class="opt-item"><input type="checkbox" class="cat-cb" value="bot cpanel"> Bot Cpanel</label>
+                </div>
             </div>
+
+            <select id="dl-plat">
+                <option value="wa">VIA: WHATSAPP</option>
+                <option value="tele:">VIA: TELEGRAM</option>
+            </select>
+            
             <button class="btn-blue" onclick="window.addFile()">PUBLISH CONTENT</button>
         </div>
 
@@ -79,6 +114,25 @@
         let currentPage = 1;
         const itemsPerPage = 10;
 
+        window.toggleCatDropdown = () => {
+            document.getElementById('cat-options').classList.toggle('show');
+            document.getElementById('cat-trigger').classList.toggle('active');
+        };
+
+        document.querySelectorAll('.cat-cb').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const selected = Array.from(document.querySelectorAll('.cat-cb:checked')).map(c => c.value);
+                document.getElementById('selected-label').innerText = selected.length > 0 ? selected.join(', ').toUpperCase() : 'Pilih Kategori';
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.multi-select')) {
+                document.getElementById('cat-options').classList.remove('show');
+                document.getElementById('cat-trigger').classList.remove('active');
+            }
+        });
+
         const checkAccess = async () => {
             if (sessionStorage.getItem("__auth_dl") === "true") {
                 document.getElementById("main-content").style.display = "block";
@@ -103,21 +157,25 @@
             const thumb = document.getElementById('dl-thumb').value;
             const link = document.getElementById('dl-link').value;
             const desc = document.getElementById('dl-desc').value;
-            const cat = document.getElementById('dl-cat').value;
             const plat = document.getElementById('dl-plat').value;
+            const selectedCats = Array.from(document.querySelectorAll('.cat-cb:checked')).map(cb => cb.value);
+            const catString = selectedCats.join(', ');
 
             if(!title || !link || !thumb) return Swal.fire("Error", "Isi Title, Thumb, dan Link!", "error");
+            if(selectedCats.length === 0) return Swal.fire("Error", "Pilih minimal satu kategori!", "error");
 
             push(ref(db, 'downloads'), {
                 title, thumb, link, desc: desc || '-', 
-                category: cat || 'bot', 
+                category: catString, 
                 platform: plat,
                 dlCount: 0, likes: 0,
                 date: new Date().toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}),
                 ts: Date.now()
             }).then(() => {
                 Swal.fire({ title: "Published!", icon: "success", background: '#111', color: '#fff' });
-                document.querySelectorAll('input, textarea').forEach(i => i.value = "");
+                document.querySelectorAll('input:not([type="checkbox"]), textarea').forEach(i => i.value = "");
+                document.querySelectorAll('.cat-cb').forEach(cb => cb.checked = false);
+                document.getElementById('selected-label').innerText = 'Pilih Kategori';
             });
         };
 
@@ -136,17 +194,11 @@
             list.innerHTML = "";
             const start = (currentPage - 1) * itemsPerPage;
             const currentItems = allFiles.slice(start, start + itemsPerPage);
-
             currentItems.forEach(f => {
                 const d = document.createElement('div');
                 d.className = 'item';
-                d.innerHTML = `
-                    <div class="item-info">
-                        <b>${f.title}</b>
-                        <div class="stats">📥 ${f.dlCount || 0} | ❤️ ${f.likes || 0} | 🏷️ ${f.category}</div>
-                    </div>
-                    <button class="btn-red" onclick="window.delFile('${f.id}')">DELETE</button>
-                `;
+                const catDisplay = f.category ? String(f.category).toUpperCase() : 'NO CATEGORY';
+                d.innerHTML = `<div class="item-info"><b>${f.title}</b><div class="stats">📥 ${f.dlCount || 0} | ❤️ ${f.likes || 0} | 🏷️ ${catDisplay}</div></div><button class="btn-red" onclick="window.delFile('${f.id}')">DELETE</button>`;
                 list.appendChild(d);
             });
             window.renderPagination();
