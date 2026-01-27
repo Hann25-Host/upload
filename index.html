@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HANN 25 - UPLOAD</title>
@@ -143,8 +145,16 @@
                 const pass = getValue(rc, "admin_password").asString();
                 const { value: res } = await Swal.fire({
                     title: 'ADMIN ACCESS', input: 'password', background: '#111', color: '#fff',
-                    allowOutsideClick: false, preConfirm: (v) => v === pass || Swal.showValidationMessage('Wrong Password!')
-                });
+                    allowOutsideClick: false, preConfirm: (v) => {
+    const inputHashed = CryptoJS.SHA256(v).toString();
+    if (inputHashed === pass) {
+        return true;
+    } else {
+        Swal.showValidationMessage('Password Salah!');
+        return false;
+    }
+}
+
                 if (res) {
                     sessionStorage.setItem("__auth_dl", "true");
                     document.getElementById("main-content").style.display = "block";
